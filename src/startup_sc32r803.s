@@ -63,17 +63,17 @@ __Vectors       DCD     __initial_sp                   ; Top of Stack
                 DCD     SysTick_Handler                ; SysTick Handler
 
                 ; External Interrupts
-                DCD     INT0_IRQHandler               ; INT0
-				DCD     INT1_7_IRQHandler             ; INT1~INT17
-				DCD     INT8_11_IRQHandler            ; INT8~INT11
-				DCD     INT12_15_IRQHandler           ; INT12~INT15
+                DCD     INT0_IRQHandler                ; INT0
+				DCD     INT1_7_IRQHandler              ; INT1~INT17
+				DCD     INT8_11_IRQHandler             ; INT8~INT11
+				DCD     INT12_15_IRQHandler            ; INT12~INT15
 				DCD		RCC_IRQHandler				   ; RCC：停振检测
 				DCD		0                              ; LDP
                 DCD     BTM_IRQHandler                 ; BTM
                 DCD     UART0_2_4_IRQHandler           ; UART0-UART2(LIN)-UART4
 				DCD     UART1_3_5_IRQHandler           ; UART1-UART3-UART5
-				DCD     TWIx_QSPIx_0_2_IRQHandler       ; TWI_QSPIx_0_2_IRQn
-				DCD     TWIx_QSPIx_1_3_IRQHandler       ; TWI_QSPIx_1_3_IRQn
+				DCD     TWIx_QSPIx_0_2_IRQHandler      ; TWI_QSPIx_0_2_IRQn
+				DCD     TWIx_QSPIx_1_3_IRQHandler      ; TWI_QSPIx_1_3_IRQn
 				DCD     DMA0_IRQHandler                ; DMA0
 				DCD     DMA1_IRQHandler                ; DMA1
 				DCD     DMA2_IRQHandler                ; DMA2

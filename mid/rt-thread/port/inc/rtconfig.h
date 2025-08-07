@@ -1,6 +1,8 @@
 #ifndef __RTTHREAD_CFG_H__
 #define __RTTHREAD_CFG_H__
 
+#include <finsh_config.h>
+
 /**
  * @brief RT-Thread的配置头文件。
  * @details 开启或关闭特定功能；支持选配不同功能。
@@ -57,7 +59,14 @@
  * @warning 以字节为单位，不能太小。
  * @note 取值范围为：1-4086
  */
-#define RT_MAIN_THREAD_STACK_SIZE (3 * 128)
+#define RT_MAIN_THREAD_STACK_SIZE (8 * 64)
+
+/**
+ * @brief 配置main线程的优先级。
+ * @warning
+ * @note
+ */
+#define RT_MAIN_THREAD_PRIORITY 1
 
 /**
  * @brief 启用内核调试。
@@ -109,7 +118,7 @@
  * @warning 请根据定时精确性与实际线程个数进行调整。
  * @note 默认为4。
  */
-#define RT_TIMER_THREAD_PRIO 4
+#define RT_TIMER_THREAD_PRIO (RT_THREAD_PRIORITY_MAX - 3)
 
 /**
  * @brief 配置用户定时器的线程栈大小。
@@ -123,7 +132,7 @@
  * @warning
  * @note 解决"谁先谁后"的同步问题。
  */
-// #define RT_USING_SEMAPHORE
+#define RT_USING_SEMAPHORE
 
 /**
  * @brief 启用互斥量。
@@ -207,14 +216,7 @@
  * @warning 一般不变
  * @note 默认256字节。
  */
-#define RT_CONSOLEBUF_SIZE 256
-
-/**
- * @brief 启用交互式的命令行界面。
- * @warning
- * @note 允许通过串口或其他终端设备与系统进行交互操作。
- */
-// #include "finsh_config.h"
+#define RT_CONSOLEBUF_SIZE (4 * 64)
 
 /**
  * @brief 启用设备驱动框架。

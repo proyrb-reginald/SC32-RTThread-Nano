@@ -65,7 +65,8 @@ static void port_uart5_init(void) {
     UART_InitStruct.UART_BaudRate       = 115200;         // 设置波特率为115200
     UART_InitStruct.UART_Mode           = UART_Mode_10B;  // 设置工作模式为10位数据位
     UART_Init(UART5, &UART_InitStruct);                   // 初始化
-    UART_ITConfig(UART5, UART_IT_EN, DISABLE);            // 禁用中断
+    UART_ITConfig(UART5, UART_IT_EN, ENABLE);             // 打开总中断
+    UART_ITConfig(UART5, UART_IT_RX, ENABLE);             // 打开接收中断
     UART_PinRemapConfig(UART5, UART_PinRemap_Default);    // 设置引脚复用为默认配置
     UART_TXCmd(UART5, ENABLE);                            // 使能发送功能
     UART_RXCmd(UART5, ENABLE);                            // 使能接收功能
@@ -84,6 +85,16 @@ static void port_uart5_init(void) {
 void SysTick_Handler(void) {
     rt_interrupt_enter();
     rt_tick_increase();
+    rt_interrupt_leave();
+}
+
+void UART1_3_5_IRQHandler(void) {
+    rt_interrupt_enter();
+    if (UART_GetFlagStatus(UART5, UART_Flag_RX)) {
+        rt_kprintf("in\n");
+        UART_ClearFlag(UART5, UART_Flag_RX);
+    }
+    rt_kprintf("in\n");
     rt_interrupt_leave();
 }
 
@@ -126,5 +137,19 @@ void rt_hw_board_init(void) {
  */
 void rt_hw_console_output(const char * str) {
     printf("%s", str);
+}
+#endif
+
+#ifdef RT_USING_FINSH
+/**
+ * @brief 实现终端信息输入。
+ * @param
+ * @retval 输入的字符。
+ * @warning
+ * @note RT-Thread的系统调用。
+ */
+char rt_hw_console_getchar(void) {
+    char ch = -1;
+    return ch;
 }
 #endif
