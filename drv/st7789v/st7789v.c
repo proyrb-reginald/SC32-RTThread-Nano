@@ -1,96 +1,64 @@
 #define ST7789V_C
 
-#include "st7789v.h"
-#include "sc32_conf.h"
-#include "os.h"
-#include "log.h"
-#include "FreeRTOS.h"
-#include "semphr.h"
-#include "task.h"
+#include <st7789v.h>
 
-static SemaphoreHandle_t trig_async_dma = NULL;
-static SemaphoreHandle_t dma_done       = NULL;
-static st7789v_arg       dma;
-static uint8_t           clm_data[4], row_data[4];
-static st7789v_arg       clm_arg, row_arg;
-
-BaseType_t st7789v_init(void) {
-    if (trig_async_dma == NULL) {
-        trig_async_dma = xSemaphoreCreateBinary();
-        if (trig_async_dma == NULL) {
-            OS_PRTF(ERRO_LOG, "create trig_async_dma fail!\n");
-            return pdFAIL;
-        }
-    }
-
-    if (dma_done == NULL) {
-        dma_done = xSemaphoreCreateBinary();
-        if (dma_done == NULL) {
-            OS_PRTF(ERRO_LOG, "create dma_done fail!\n");
-            return pdFAIL;
-        }
-    }
-
-    clm_arg.data = clm_data;
-    clm_arg.size = sizeof(clm_data);
-    row_arg.data = row_data;
-    row_arg.size = sizeof(row_data);
-
+int st7789v_init(void) {
     GPIO_WriteBit(CHIP_GPIO_GRP, CHIP_GPIO_PIN, 1);
     GPIO_WriteBit(RESET_GPIO_GRP, RESET_GPIO_PIN, 1);
-    vTaskDelay(1);
+    rt_thread_delay(1);
     GPIO_WriteBit(RESET_GPIO_GRP, RESET_GPIO_PIN, 0);
-    vTaskDelay(1);
+    rt_thread_delay(1);
     GPIO_WriteBit(RESET_GPIO_GRP, RESET_GPIO_PIN, 1);
-    vTaskDelay(120);
+    rt_thread_delay(120);
     GPIO_WriteBit(CHIP_GPIO_GRP, CHIP_GPIO_PIN, 1);
-    OS_PRTF(INFO_LOG, "reset done!");
+    OS_PRTF(INFO_LOG, "reset done!\n");
 
-    uint8_t     data[2];
-    st7789v_arg arg;
+    uint8_t       data[2];
+    st7789v_arg_t arg;
 
     st7789v_ctl(Wake, NULL);
-    vTaskDelay(120);
-    OS_PRTF(INFO_LOG, "wake done!");
+    rt_thread_delay(120);
+    OS_PRTF(INFO_LOG, "wake done!\n");
 
     data[0]  = 0x0;
     arg.data = data;
     arg.size = 1;
     st7789v_ctl(SetRAMReadMode, &arg);
-    OS_PRTF(INFO_LOG, "set read mode done!");
+    OS_PRTF(INFO_LOG, "set read mode!\n");
 
     data[0]  = 0x55;
     arg.data = data;
     arg.size = 1;
     st7789v_ctl(SetColorFmt, &arg);
-    OS_PRTF(INFO_LOG, "set color fmt done!");
+    OS_PRTF(INFO_LOG, "set color fmt!\n");
 
     data[0]  = 0x00;
     data[1]  = 0x08;
     arg.data = data;
     arg.size = 2;
     st7789v_ctl(SetRGB, &arg);
-    OS_PRTF(INFO_LOG, "set rgb fmt done!");
+    OS_PRTF(INFO_LOG, "set rgb fmt!\n");
 
     st7789v_ctl(OnReverse, NULL);
-    OS_PRTF(INFO_LOG, "reverse done!");
+    OS_PRTF(INFO_LOG, "reverse done!\n");
 
     st7789v_ctl(OnDisplay, NULL);
-    vTaskDelay(50);
+    rt_thread_delay(50);
 
-    OS_PRTF(NEWS_LOG, "init done!");
+    OS_PRTF(NEWS_LOG, "init done!\n");
 
-    return pdPASS;
+    return RT_EOK;
 }
 
-__inline__ void st7789v_dma_irq(void) {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xSemaphoreGiveFromISR(dma_done, &xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+__attribute__((always_inline)) void st7789v_dma_irq(void) {
+    GPIO_WriteBit(CHIP_GPIO_GRP, CHIP_GPIO_PIN, 1);
+    SPI_DMACmd(USE_SPI, SPI_DMAReq_TX, DISABLE);
+    DMA_Cmd(USE_DMA, DISABLE);
+    LVGL_DONE();
 }
 
-__attribute__((optnone)) void st7789v_ctl(const st7789v_cmd         cmd,
-                                          const st7789v_arg * const arg) {
+__attribute__((optnone)) void st7789v_ctl(const st7789v_cmd_t         cmd,
+                                          const st7789v_arg_t * const arg) {
     GPIO_WriteBit(MODE_GPIO_GRP, MODE_GPIO_PIN, 0);
     GPIO_WriteBit(CHIP_GPIO_GRP, CHIP_GPIO_PIN, 0);
 
@@ -101,22 +69,12 @@ __attribute__((optnone)) void st7789v_ctl(const st7789v_cmd         cmd,
         GPIO_WriteBit(MODE_GPIO_GRP, MODE_GPIO_PIN, 1);
         switch (cmd) {
             case Write: {
-                if (xSemaphoreTake(dma_mutex, portMAX_DELAY) == pdTRUE) {
-                    DMA_SetSrcAddress(USE_DMA, (uint32_t)dma.data);
-                    DMA_SetCurrDataCounter(USE_DMA, dma.size);
-                    DMA_Cmd(USE_DMA, ENABLE);
-                    SPI_DMACmd(USE_SPI, SPI_DMAReq_TX, ENABLE);
-                    DMA_SoftwareTrigger(USE_DMA);
-
-                    if (xSemaphoreTake(dma_done, portMAX_DELAY) == pdTRUE) {
-                        SPI_DMACmd(USE_SPI, SPI_DMAReq_TX, DISABLE);
-                        DMA_Cmd(USE_DMA, DISABLE);
-                    }
-
-                    LVGL_DONE();
-                    xSemaphoreGive(dma_mutex);
-                }
-                break;
+                DMA_SetSrcAddress(USE_DMA, (uint32_t)arg->data);
+                DMA_SetCurrDataCounter(USE_DMA, arg->size);
+                DMA_Cmd(USE_DMA, ENABLE);
+                SPI_DMACmd(USE_SPI, SPI_DMAReq_TX, ENABLE);
+                DMA_SoftwareTrigger(USE_DMA);
+                return;
             }
             default: {
                 for (uint8_t i = 0; i < arg->size; ++i) {
@@ -131,16 +89,49 @@ __attribute__((optnone)) void st7789v_ctl(const st7789v_cmd         cmd,
     GPIO_WriteBit(CHIP_GPIO_GRP, CHIP_GPIO_PIN, 1);
 }
 
-#if TEST
-#    include <string.h>
-#    define LCD_WIDTH 240
-#    define LCD_HIGHT 320
-#    define TEST_SIZE 4
-#    define FLUSH_CNT (LCD_HIGHT / TEST_SIZE)
-static uint8_t                        test_data_r[LCD_WIDTH * TEST_SIZE * 2] = {0};
-static uint8_t                        test_data_b[LCD_WIDTH * TEST_SIZE * 2] = {0};
-__attribute__((noreturn)) static void test_task(void * task_arg) {
-    for (uint16_t i = 0; i < sizeof(test_data_r); i++) {
+void st7789v_async_fill(const st7789v_area_t * const area,
+                        const void * const           buf,
+                        const uint32_t               size) {
+    uint8_t       data[4];
+    st7789v_arg_t arg = {.data = data};
+
+    /* 设置列地址 */
+    data[0]  = area->x1 >> 8;
+    data[1]  = area->x1;
+    data[2]  = area->x2 >> 8;
+    data[3]  = area->x2;
+    arg.size = 4;
+    st7789v_ctl(SetColumn, &arg);
+
+    /* 设置行地址 */
+    data[0]  = area->y1 >> 8;
+    data[1]  = area->y1;
+    data[2]  = area->y2 >> 8;
+    data[3]  = area->y2;
+    arg.size = 4;
+    st7789v_ctl(SetRow, &arg);
+
+    /* 设置开始传输 */
+    arg.data = (const uint8_t *)buf;
+    arg.size = size;
+    st7789v_ctl(Write, &arg);
+}
+
+#if ST7789V_TEST
+
+#    define TEST_WIDTH 240
+#    define TEST_HIGHT 320
+#    define FLUSH_SIZE 4
+#    define FLUSH_CNT (TEST_HIGHT / FLUSH_SIZE)
+#    define DATA_SIZE (TEST_WIDTH * FLUSH_SIZE * 2)
+
+static uint8_t test_data_r[DATA_SIZE] = {0};
+static uint8_t test_data_b[DATA_SIZE] = {0};
+
+void st7789v_test(void * thread_args) {
+    OS_PRTF(NEWS_LOG, "start test!\n");
+
+    for (uint16_t i = 0; i < DATA_SIZE; i++) {
         if (i % 2 == 0) {
             test_data_r[i] = 0x00;
             test_data_b[i] = 0x1F;
@@ -150,58 +141,22 @@ __attribute__((noreturn)) static void test_task(void * task_arg) {
         }
     }
 
-    uint8_t  flag = 0;
-    uint16_t s_x = 0, e_x = LCD_WIDTH - 1, s_y, e_y;
+    uint8_t        flag = 0;
+    st7789v_area_t area = {.x1 = 0, .x2 = TEST_WIDTH - 1};
+
     while (1) {
         for (uint8_t i = 0; i < FLUSH_CNT; i++) {
-            s_y = i * TEST_SIZE;
-            e_y = s_y + TEST_SIZE - 1;
+            area.y1 = i * FLUSH_SIZE;
+            area.y2 = area.y1 + FLUSH_SIZE - 1;
             if (flag) {
-                st7789v_async_fill(s_x, e_x, s_y, e_y, test_data_b, sizeof(test_data_b));
+                st7789v_async_fill(&area, test_data_b, DATA_SIZE);
             } else {
-                st7789v_async_fill(s_x, e_x, s_y, e_y, test_data_r, sizeof(test_data_r));
+                st7789v_async_fill(&area, test_data_r, DATA_SIZE);
             }
+            rt_thread_delay(3);
         }
         flag = (flag) ? 0 : 1;
-        vTaskDelay(100);
-    }
-}
-#endif  // TEST
-
-__attribute__((noreturn)) void st7789v_task(void * task_arg) {
-#if TEST
-    TaskHandle_t task_hdl;
-    xTaskCreate(test_task, "test", 70, NULL, 2, &task_hdl);
-    os_add_task(&task_hdl);
-#endif  // TEST
-
-    while (1) {
-        if (xSemaphoreTake(trig_async_dma, portMAX_DELAY) == pdTRUE) {
-            st7789v_ctl(SetColumn, &clm_arg);
-            st7789v_ctl(SetRow, &row_arg);
-            st7789v_ctl(Write, &dma);
-        }
     }
 }
 
-void st7789v_async_fill(uint16_t           s_x,
-                        uint16_t           e_x,
-                        uint16_t           s_y,
-                        uint16_t           e_y,
-                        const void * const buf,
-                        const uint32_t     size) {
-    clm_data[0] = s_x >> 8;
-    clm_data[1] = s_x;
-    clm_data[2] = e_x >> 8;
-    clm_data[3] = e_x;
-
-    row_data[0] = s_y >> 8;
-    row_data[1] = s_y;
-    row_data[2] = e_y >> 8;
-    row_data[3] = e_y;
-
-    dma.data = (uint8_t *)buf;
-    dma.size = size;
-
-    xSemaphoreGive(trig_async_dma);
-}
+#endif

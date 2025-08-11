@@ -2,24 +2,27 @@
 #define ST7789V_H
 
 /**
- * @brief 这是st7789v驱动模块。
+ * @brief st7789v驱动程序。
  * @details 先调用st7789v_init初始化模块；再调用st7789v_async_fill来填充指定的屏幕区域。
  * @file st7789v.h
  * @author proyrb
- * @date 2025/7/28
+ * @date 2025/8/8
  * @note
  */
 
 /********** 导入需要的头文件 **********/
 
-#include "FreeRTOS.h"
-#include "task.h"
-#include "lvgl.h"
-#include "lv_port_disp.h"
+#include <sc32_conf.h>
+#include <rtthread.h>
+#include <log.h>
+// #include <lvgl.h>
+// #include <lv_port_disp.h>
 
-/********** 选择 gpio 引脚 **********/
+/********** 配置模块行为 **********/
 
 #ifdef ST7789V_C
+
+/* 配置GPIO */
 #    define RESET_GPIO_GRP GPIOC
 #    define RESET_GPIO_PIN GPIO_Pin_12
 
@@ -28,33 +31,21 @@
 
 #    define CHIP_GPIO_GRP GPIOC
 #    define CHIP_GPIO_PIN GPIO_Pin_14
-#endif  // ST7789V_C
 
-/********** 选择 spi 设备 **********/
-
-#ifdef ST7789V_C
+/* 配置SPI */
 #    define USE_SPI SPI2
-#endif  // ST7789V_C
 
-/********** 选择 dma 设备 **********/
-
-#ifdef ST7789V_C
+/* 配置DMA */
 #    define USE_DMA DMA0
-#endif  // ST7789V_C
 
-/********** 选择 lvgl 配置 **********/
+/* 配置LVGL */
+#    define LVGL_DISP    // port_disp
+#    define LVGL_DONE()  // lv_display_flush_ready(LVGL_DISP)
 
-#ifdef ST7789V_C
-#    define LVGL_DISP port_disp
-#    define LVGL_DONE() lv_display_flush_ready(LVGL_DISP)
-#endif  // ST7789V_C
+/* 启用测试功能 */
+#    define ST7789V_TEST 1
 
-/********** 选择 task 配置 **********/
-
-// 是否启用测试
-#ifdef ST7789V_C
-#    define TEST 0
-#endif  // ST7789V_C
+#endif
 
 /********** 主要使用的指令 **********/
 
@@ -68,14 +59,25 @@ typedef enum {
     SetRow         = 0x2B,  // 设置窗口的行范围
     SetRGB         = 0xB0,  // 设置RGB字节序
     Write          = 0x2C,  // 写入数据
-} st7789v_cmd;
+} st7789v_cmd_t;
 
 /********** 指令的可选参数 **********/
 
 typedef struct {
-    uint8_t * data;  // 参数指针
-    uint32_t  size;  // 参数字节数
-} st7789v_arg;
+    const uint8_t * data;  // 参数指针
+    uint32_t        size;  // 参数字节数
+} st7789v_arg_t;
+
+/********** 绘制区域 **********/
+
+typedef struct {
+    int16_t x1;
+    int16_t y1;
+    int16_t x2;
+    int16_t y2;
+} st7789v_area_t;
+
+typedef st7789v_area_t lv_area_t;
 
 /********** 导出的函数 **********/
 
@@ -87,7 +89,7 @@ typedef struct {
  * @warning 必须先初始化模块后才能进行后续操作。
  * @note
  */
-BaseType_t st7789v_init(void);
+extern int st7789v_init(void);
 
 /**
  * @brief dma中断处理。
@@ -96,27 +98,18 @@ BaseType_t st7789v_init(void);
  * @warning 禁止在非中断中调用。
  * @note
  */
-void st7789v_dma_irq(void);
+extern void st7789v_dma_irq(void);
 
 /**
  * @brief 发送控制指令与附带的可选参数。
- * @param cmd 指令：可以使用不在st7789v_cmd范围的值，该值会被自动作为8位命令发送。
+ * @param cmd 指令：可以使用不在st7789v_cmd_t范围的值，该值会被自动作为8位命令发送。
  * @param arg
  * 可选参数：不追加参数时请使用NULL填充；非NULL时，无论使用什么cmd值，都会发送该字节流。
  * @retval
  * @warning 线程安全；同步的。
  * @note
  */
-void st7789v_ctl(const st7789v_cmd cmd, const st7789v_arg * const arg);
-
-/**
- * @brief 屏幕填充任务。
- * @param task_arg 任务参数：暂时没有使用。
- * @retval
- * @warning
- * @note
- */
-void st7789v_task(void * task_arg);
+extern void st7789v_ctl(const st7789v_cmd_t cmd, const st7789v_arg_t * const arg);
 
 /**
  * @brief 向屏幕指定区域填充字节流。
@@ -128,11 +121,17 @@ void st7789v_task(void * task_arg);
  * @warning 线程安全；异步的。
  * @note
  */
-void st7789v_async_fill(uint16_t           s_x,
-                        uint16_t           e_x,
-                        uint16_t           s_y,
-                        uint16_t           e_y,
-                        const void * const buf,
-                        const uint32_t     size);
+extern void st7789v_async_fill(const st7789v_area_t * const area,
+                               const void * const           buf,
+                               const uint32_t               size);
 
-#endif  // ST7789V_H
+/**
+ * @brief 屏幕填充任务。
+ * @param thread_args 任务参数：暂时没有使用。
+ * @retval
+ * @warning
+ * @note
+ */
+extern void st7789v_test(void * thread_args);
+
+#endif

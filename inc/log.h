@@ -6,18 +6,17 @@
  * @details
  * @file log.h
  * @author proyrb
- * @date 2025/7/30
+ * @date 2025/8/8
  * @note
  */
 
 /********** 导入需要的头文件 **********/
 
-#include <stdio.h>
-#include <string.h>
+#include <rtthread.h>
 
-/********** 选择 log 配置 **********/
+/********** 配置模块功能 **********/
 
-// 日志等级
+/* 日志等级 */
 #define TRAC_LOG 0
 #define INFO_LOG 1
 #define NEWS_LOG 2
@@ -25,40 +24,26 @@
 #define ERRO_LOG 4
 #define NONE_LOG 5
 
-// 日志输出阈值（输出大于等于该级别的日志）
-#define LOG_LEV NEWS_LOG
+/* 日志输出阈值：输出大于等于该级别的日志 */
+#define LOG_LEV INFO_LOG
 
-// 格式化打印接口函数
-#define PRINTF printf  // log_async_printf
+/* 格式化打印函数接口 */
+#define INTERFACE_PRINTF rt_kprintf
 
-// 获取系统时刻接口函数
-#define GET_TICK xTaskGetTickCount
+/* 系统时刻函数接口 */
+#define GET_TICK rt_tick_get
 
-// 获取文件名
-#define __FILENAME__                                                                     \
-    (strrchr(__FILE__, '/')  ? strrchr(__FILE__, '/') + 1 :                              \
-     strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 :                             \
-                               __FILE__)
-
-// 附带系统信息的日志打印
-#define OS_PRTF(lev, fmt, ...)                                                           \
-    do {                                                                                 \
-        if (lev >= LOG_LEV) {                                                            \
-            taskENTER_CRITICAL();                                                        \
-            PRINTF("[%u:%s:%s:%d] " fmt "\n", GET_TICK(), pcTaskGetName(NULL),           \
-                   __FILENAME__, __LINE__, ##__VA_ARGS__);                               \
-            taskEXIT_CRITICAL();                                                         \
-        }                                                                                \
-    } while (0)
-
-// 普通日志打印
+/* 打印无附加信息的日志 */
 #define PRTF(lev, fmt, ...)                                                              \
-    do {                                                                                 \
-        if (lev >= LOG_LEV) {                                                            \
-            taskENTER_CRITICAL();                                                        \
-            PRINTF(fmt, ##__VA_ARGS__);                                                  \
-            taskEXIT_CRITICAL();                                                         \
-        }                                                                                \
-    } while (0)
+    if (lev >= LOG_LEV) {                                                                \
+        INTERFACE_PRINTF(fmt, ##__VA_ARGS__);                                            \
+    }
+
+/* 打印附带系统信息的日志 */
+#define OS_PRTF(lev, fmt, ...)                                                           \
+    if (lev >= LOG_LEV) {                                                                \
+        INTERFACE_PRINTF("[%u:%s] " fmt, GET_TICK(), rt_thread_self()->name,             \
+                         ##__VA_ARGS__);                                                 \
+    }
 
 #endif  // LOG_H

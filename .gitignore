@@ -19,3 +19,6 @@
 !.keil/*.uvoptx
 !.keil/*.uvprojx
 !.keil/*.soclst
+
+# doc
+~*

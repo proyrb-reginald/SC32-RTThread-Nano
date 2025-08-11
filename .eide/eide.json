@@ -1,5 +1,5 @@
 {
-  "name": "project",
+  "name": "SC32-RTThread-Nano",
   "type": "ARM",
   "dependenceList": [],
   "srcDirs": [
@@ -24,8 +24,37 @@
       "excludeList": [
         "<virtual_root>/drv/st7789v",
         "<virtual_root>/drv/w25q64",
-        "drv/st7789v",
-        "drv/w25q64"
+        "drv/w25q64",
+        "mid/littlefs",
+        "mid/lvgl/examples",
+        "mid/lvgl/src/drivers/display",
+        "mid/lvgl/src/drivers/evdev",
+        "mid/lvgl/src/drivers/glfw",
+        "mid/lvgl/src/drivers/libinput",
+        "mid/lvgl/src/drivers/nuttx",
+        "mid/lvgl/src/drivers/qnx",
+        "mid/lvgl/src/drivers/sdl",
+        "mid/lvgl/src/drivers/uefi",
+        "mid/lvgl/src/drivers/wayland",
+        "mid/lvgl/src/drivers/windows",
+        "mid/lvgl/src/drivers/x11",
+        "mid/lvgl/src/libs/barcode",
+        "mid/lvgl/src/libs/bmp",
+        "mid/lvgl/src/libs/expat",
+        "mid/lvgl/src/libs/ffmpeg",
+        "mid/lvgl/src/libs/freetype",
+        "mid/lvgl/src/libs/gif",
+        "mid/lvgl/src/libs/libjpeg_turbo",
+        "mid/lvgl/src/libs/libpng",
+        "mid/lvgl/src/libs/lodepng",
+        "mid/lvgl/src/libs/lz4",
+        "mid/lvgl/src/libs/qrcode",
+        "mid/lvgl/src/libs/rle",
+        "mid/lvgl/src/libs/rlottie",
+        "mid/lvgl/src/libs/svg",
+        "mid/lvgl/src/libs/thorvg",
+        "mid/lvgl/src/libs/tiny_ttf",
+        "mid/lvgl"
       ],
       "toolchain": "AC6",
       "compileConfig": {
@@ -145,7 +174,7 @@
       "uploader": "Custom",
       "uploadConfig": {
         "bin": "",
-        "commandLine": "UV4 -p \"./.keil/project.uvprojx\" -f",
+        "commandLine": "uv4 -p \"./.keil/project.uvprojx\" -f",
         "eraseChipCommand": ""
       },
       "uploadConfigMap": {
@@ -169,12 +198,17 @@
           "inc/cmsis",
           "mid/rt-thread/cmp/finsh/inc",
           "mid/rt-thread/inc",
-          "mid/rt-thread/port/inc"
+          "mid/rt-thread/port",
+          "mid/lvgl",
+          "mid/lvgl/port",
+          "drv/st7789v"
         ],
         "libList": [],
         "defineList": [
           "SC32R803",
-          "PrintfEnable"
+          "PrintfEnable",
+          "LV_CONF_INCLUDE_SIMPLE",
+          "LV_LVGL_H_INCLUDE_SIMPLE"
         ]
       },
       "builderOptions": {
@@ -183,10 +217,11 @@
           "beforeBuildTasks": [],
           "afterBuildTasks": [],
           "global": {
-            "output-debug-info": "disable"
+            "output-debug-info": "disable",
+            "use-microLIB": true
           },
           "c/cpp-compiler": {
-            "optimization": "level-0",
+            "optimization": "level-balanced",
             "language-c": "gnu11",
             "language-cpp": "gnu++11",
             "link-time-optimization": true,
@@ -204,7 +239,8 @@
             "output-format": "elf",
             "misc-controls": "--diag_suppress=L6329",
             "ro-base": "0x00000000",
-            "rw-base": "0x20000000"
+            "rw-base": "0x20000000",
+            "$disableOutputTask": true
           }
         }
       }
